@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Contador de Objetos</title>
+
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd"></script>
+
+<style>
+body{
+    margin:0;
+    background:#111;
+    color:white;
+    font-family:Arial,sans-serif;
+    text-align:center;
+}
+
+#container{
+    position:relative;
+    width:100%;
+    max-width:800px;
+    margin:auto;
+}
+
+video{
+    width:100%;
+    height:auto;
+}
+
+canvas{
+    position:absolute;
+    left:0;
+    top:0;
+}
+
+#resultado{
+    padding:15px;
+    font-size:18px;
+    background:#222;
+}
+</style>
+</head>
+<body>
+
+<h2>Contador de Objetos</h2>
+
+<div id="container">
+    <video id="video" autoplay playsinline muted></video>
+    <canvas id="canvas"></canvas>
+</div>
+
+<div id="resultado">
+    Cargando modelo...
+</div>
+
+<script>
+
+const video = document.getElementById('video');
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+const resultado = document.getElementById('resultado');
+
+async function iniciarCamara() {
+
+    const stream = await navigator.mediaDevices.getUserMedia({
+        video:{
+            facingMode:"environment"
+        }
+    });
+
+    video.srcObject = stream;
+
+    return new Promise(resolve=>{
+        video.onloadedmetadata = ()=>{
+            resolve();
+        };
+    });
+}
+
+async function iniciar() {
+
+    await iniciarCamara();
+
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+
+    resultado.innerHTML = "Cargando IA...";
+
+    const modelo = await cocoSsd.load();
+
+    resultado.innerHTML = "Listo";
+
+    detectar(modelo);
+}
+
+async function detectar(modelo){
+
+    const predicciones = await modelo.detect(video);
+
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+
+    const conteo = {};
+
+    predicciones.forEach(pred=>{
+
+        const [x,y,w,h] = pred.bbox;
+
+        ctx.strokeStyle = "#00FF00";
+        ctx.lineWidth = 3;
+        ctx.strokeRect(x,y,w,h);
+
+        ctx.fillStyle = "#00FF00";
+        ctx.font = "18px Arial";
+        ctx.fillText(
+            pred.class + " " + Math.round(pred.score*100) + "%",
+            x,
+            y > 20 ? y - 5 : y + 20
+        );
+
+        conteo[pred.class] = (conteo[pred.class] || 0) + 1;
+
+    });
+
+    let texto = "<b>Objetos detectados:</b><br>";
+
+    Object.keys(conteo).forEach(objeto=>{
+        texto += `${objeto}: ${conteo[objeto]}<br>`;
+    });
+
+    if(Object.keys(conteo).length === 0){
+        texto = "No se detectan objetos";
+    }
+
+    resultado.innerHTML = texto;
+
+    requestAnimationFrame(()=>{
+        detectar(modelo);
+    });
+}
+
+iniciar();
+
+</script>
+
+</body>
+</html>
