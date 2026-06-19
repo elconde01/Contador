@@ -321,3 +321,61 @@ async function detect() {
 
     requestAnimationFrame(detect);
 }
+// ====================================
+// CALCULAR IoU (intersección sobre unión)
+// Usado por NMS para eliminar duplicados
+// ====================================
+
+function iou(a, b) {
+
+    const x1 = Math.max(a.x, b.x);
+    const y1 = Math.max(a.y, b.y);
+
+    const x2 = Math.min(
+        a.x + a.width,
+        b.x + b.width
+    );
+
+    const y2 = Math.min(
+        a.y + a.height,
+        b.y + b.height
+    );
+
+    const interArea =
+        Math.max(0, x2 - x1) *
+        Math.max(0, y2 - y1);
+
+    const unionArea =
+        a.width * a.height +
+        b.width * b.height -
+        interArea;
+
+    return interArea / unionArea;
+}
+
+
+// ====================================
+// NON MAXIMUM SUPPRESSION
+// ====================================
+
+function nms(boxes, threshold = 0.45) {
+
+    boxes.sort((a, b) =>
+        b.score - a.score
+    );
+
+    const result = [];
+
+    while (boxes.length > 0) {
+
+        const best = boxes.shift();
+
+        result.push(best);
+
+        boxes = boxes.filter(box =>
+            iou(best, box) < threshold
+        );
+    }
+
+    return result;
+}
