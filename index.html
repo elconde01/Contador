@@ -3,30 +3,43 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Contador de Objetos</title>
 
-<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
-<script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd"></script>
+<title>YOLOv8 Object Counter</title>
+
+<!-- ONNX Runtime Web -->
+<script src="https://cdn.jsdelivr.net/npm/onnxruntime-web/dist/ort.min.js"></script>
 
 <style>
+
+*{
+    box-sizing: border-box;
+}
+
 body{
     margin:0;
-    background:#111;
+    background:#101010;
     color:white;
-    font-family:Arial,sans-serif;
+    font-family:Arial, Helvetica, sans-serif;
     text-align:center;
+}
+
+h1{
+    margin:10px;
+    font-size:22px;
 }
 
 #container{
     position:relative;
     width:100%;
-    max-width:800px;
+    max-width:900px;
     margin:auto;
 }
 
-video{
+video,
+canvas{
     width:100%;
     height:auto;
+    border-radius:10px;
 }
 
 canvas{
@@ -35,114 +48,133 @@ canvas{
     top:0;
 }
 
-#resultado{
-    padding:15px;
-    font-size:18px;
-    background:#222;
+.panel{
+    background:#202020;
+    margin:10px;
+    padding:10px;
+    border-radius:10px;
 }
+
+label{
+    display:block;
+    margin:8px;
+}
+
+button,
+select,
+input{
+    padding:8px;
+    margin:5px;
+    border-radius:5px;
+    border:none;
+}
+
+#objects{
+    font-size:18px;
+    margin-top:10px;
+}
+
+#status{
+    color:#00ff90;
+}
+
+#fps{
+    color:#00ccff;
+}
+
 </style>
+
 </head>
+
 <body>
 
-<h2>Contador de Objetos</h2>
+<h1>
+📷 Contador de Objetos con YOLOv8
+</h1>
+
 
 <div id="container">
-    <video id="video" autoplay playsinline muted></video>
-    <canvas id="canvas"></canvas>
+
+    <video 
+        id="video"
+        autoplay 
+        playsinline 
+        muted>
+    </video>
+
+    <canvas id="canvas">
+    </canvas>
+
 </div>
 
-<div id="resultado">
-    Cargando modelo...
+
+<div class="panel">
+
+    <div id="status">
+        Inicializando...
+    </div>
+
+    <div id="fps">
+        FPS: 0
+    </div>
+
 </div>
 
-<script>
 
-const video = document.getElementById('video');
-const canvas = document.getElementById('canvas');
-const ctx = canvas.getContext('2d');
-const resultado = document.getElementById('resultado');
+<div class="panel">
 
-async function iniciarCamara() {
+    <label>
+        Cámara:
+        <select id="cameraSelect">
+        </select>
+    </label>
 
-    const stream = await navigator.mediaDevices.getUserMedia({
-        video:{
-            facingMode:"environment"
-        }
-    });
 
-    video.srcObject = stream;
+    <label>
+        Sensibilidad:
+        <input 
+            id="confidence"
+            type="range"
+            min="0.1"
+            max="0.9"
+            step="0.05"
+            value="0.5">
+            
+        <span id="confidenceValue">
+            50%
+        </span>
 
-    return new Promise(resolve=>{
-        video.onloadedmetadata = ()=>{
-            resolve();
-        };
-    });
-}
+    </label>
 
-async function iniciar() {
 
-    await iniciarCamara();
+    <button id="freezeButton">
+        ⏸ Congelar
+    </button>
 
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
+</div>
 
-    resultado.innerHTML = "Cargando IA...";
 
-    const modelo = await cocoSsd.load();
+<div class="panel">
 
-    resultado.innerHTML = "Listo";
+    <h3>
+        Objetos detectados
+    </h3>
 
-    detectar(modelo);
-}
+    <div id="objects">
+        Ninguno
+    </div>
 
-async function detectar(modelo){
+</div>
 
-    const predicciones = await modelo.detect(video);
 
-    ctx.clearRect(0,0,canvas.width,canvas.height);
+<!-- Lista de etiquetas COCO -->
+<script src="labels.js"></script>
 
-    const conteo = {};
 
-    predicciones.forEach(pred=>{
+<!-- Lógica principal -->
+<script src="app.js"></script>
 
-        const [x,y,w,h] = pred.bbox;
-
-        ctx.strokeStyle = "#00FF00";
-        ctx.lineWidth = 3;
-        ctx.strokeRect(x,y,w,h);
-
-        ctx.fillStyle = "#00FF00";
-        ctx.font = "18px Arial";
-        ctx.fillText(
-            pred.class + " " + Math.round(pred.score*100) + "%",
-            x,
-            y > 20 ? y - 5 : y + 20
-        );
-
-        conteo[pred.class] = (conteo[pred.class] || 0) + 1;
-
-    });
-
-    let texto = "<b>Objetos detectados:</b><br>";
-
-    Object.keys(conteo).forEach(objeto=>{
-        texto += `${objeto}: ${conteo[objeto]}<br>`;
-    });
-
-    if(Object.keys(conteo).length === 0){
-        texto = "No se detectan objetos";
-    }
-
-    resultado.innerHTML = texto;
-
-    requestAnimationFrame(()=>{
-        detectar(modelo);
-    });
-}
-
-iniciar();
-
-</script>
 
 </body>
+
 </html>
