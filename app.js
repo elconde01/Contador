@@ -201,3 +201,123 @@ freezeButton.addEventListener(
 
     }
 );
+// ====================================
+// PREPARAR IMAGEN PARA YOLO
+// Convierte la imagen a:
+// [1, 3, 640, 640] Float32
+// ====================================
+
+function preprocess() {
+
+    const size = 640;
+
+    const tempCanvas = document.createElement("canvas");
+    const tempCtx = tempCanvas.getContext("2d");
+
+    tempCanvas.width = size;
+    tempCanvas.height = size;
+
+    tempCtx.drawImage(
+        video,
+        0,
+        0,
+        size,
+        size
+    );
+
+    const imageData =
+        tempCtx.getImageData(
+            0,
+            0,
+            size,
+            size
+        );
+
+    const pixels = imageData.data;
+
+    const input =
+        new Float32Array(
+            3 * size * size
+        );
+
+    let r = 0;
+    let g = size * size;
+    let b = 2 * size * size;
+
+
+    // Convierte RGBA a RGB normalizado
+    for (let i = 0; i < pixels.length; i += 4) {
+
+        input[r++] = pixels[i] / 255;
+        input[g++] = pixels[i + 1] / 255;
+        input[b++] = pixels[i + 2] / 255;
+    }
+
+
+    return new ort.Tensor(
+        "float32",
+        input,
+        [1, 3, size, size]
+    );
+}
+
+
+
+// ====================================
+// EJECUTAR YOLO
+// ====================================
+
+async function detect() {
+
+    if (paused) {
+
+        requestAnimationFrame(detect);
+        return;
+    }
+
+
+    if (!session) {
+
+        requestAnimationFrame(detect);
+        return;
+    }
+
+
+    const start = performance.now();
+
+
+    const inputTensor = preprocess();
+
+
+    // Nombre del tensor de entrada.
+    // En la mayoría de modelos YOLOv8
+    // exportados es "images".
+    const feeds = {
+        images: inputTensor
+    };
+
+
+    const output =
+        await session.run(feeds);
+
+
+    const end = performance.now();
+
+
+    fps = Math.round(
+        1000 / (end - lastTime)
+    );
+
+    lastTime = end;
+
+
+    fpsDiv.innerText =
+        "FPS: " + fps;
+
+
+    // En la próxima parte
+    // vamos a interpretar
+    // la salida del modelo
+
+    requestAnimationFrame(detect);
+}
